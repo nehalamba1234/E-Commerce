@@ -8,8 +8,8 @@ import os
 app = FastAPI()
 
 # Kafka Configuration
-KAFKA_BROKER_URL = os.getenv("KAFKA_BROKER_URL", "localhost:9092")
-PAYMENT_TOPIC = os.getenv("PAYMENT_TOPIC", "payment_topic")
+KAFKA_BROKER_URL = "localhost:9092"
+PAYMENT_TOPIC = "payment_topic"
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

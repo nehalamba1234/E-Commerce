@@ -1,7 +1,9 @@
-from fastapi import FastAPI
-from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
+from fastapi import FastAPI, Request
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 import json
 import asyncio
+from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 
 app = FastAPI()
 
@@ -10,8 +12,40 @@ KAFKA_BROKER_URL = "localhost:9092"
 ORDER_TOPIC = "order_topic"
 PAYMENT_TOPIC = "payment_topic"
 
+from pydantic import BaseModel
+
+class PaymentRequest(BaseModel):
+    order_id: str
+
+# Setup Jinja2 Templates
+templates = Jinja2Templates(directory="templates")
+
+# Serve static files (optional)
+#app.mount("/static", StaticFiles(directory="static"), name="static")
+
+producer = None
+orders = {}  # Store orders temporarily for user interaction
+
+@app.on_event("startup")
+async def start_kafka():
+    """Start Kafka Producer and Consumer"""
+    global producer
+    producer = AIOKafkaProducer(
+        bootstrap_servers=KAFKA_BROKER_URL,
+        value_serializer=lambda v: json.dumps(v).encode("utf-8")
+    )
+    await producer.start()
+
+    # Start the consumer as a background task
+    asyncio.create_task(consume_orders())
+
+@app.on_event("shutdown")
+async def stop_kafka():
+    """Stop Kafka Producer"""
+    await producer.stop()
+
 async def consume_orders():
-    """Asynchronous Kafka Consumer"""
+    """Kafka Consumer: Listen for new orders"""
     consumer = AIOKafkaConsumer(
         ORDER_TOPIC,
         bootstrap_servers=KAFKA_BROKER_URL,
@@ -19,27 +53,35 @@ async def consume_orders():
     )
     await consumer.start()
 
-    producer = AIOKafkaProducer(
-        bootstrap_servers=KAFKA_BROKER_URL,
-        value_serializer=lambda v: json.dumps(v).encode("utf-8")
-    )
-    await producer.start()
-
     try:
         async for message in consumer:
             order = message.value
-            order["status"] = "payment_processed"
-            
-            await producer.send(PAYMENT_TOPIC, value=order)
+            orders[order["order_id"]] = order  # Store order for later processing
+            print(f"Received order: {order}")
     finally:
         await consumer.stop()
-        await producer.stop()
 
-@app.on_event("startup")
-async def start_consumer():
-    """Run Kafka consumer in the background"""
-    asyncio.create_task(consume_orders())
+@app.get("/payment_page/")
+async def payment_page(request: Request, order_id: str):
+    """Serve the payment page for a specific order"""
+    order = orders.get(order_id, None)
+    if not order:
+        return {"error": "Order not found"}
+    
+    return templates.TemplateResponse("payment_page.html", {"request": request, "order": order})
 
-@app.get("/")
-async def home():
-    return {"message": "Payment Service Running"}
+@app.post("/process_payment/")
+async def process_payment(payment: PaymentRequest):
+    """Process the payment and publish event to Kafka"""
+    order_id = payment.order_id
+    order = orders.get(order_id)
+   # order = orders.get(order_id)
+    if not order:
+        return {"error": "Order not found"}
+
+    # Simulate payment processing
+    order["status"] = "payment_processed"
+    await producer.send(PAYMENT_TOPIC, order)
+    print(f"Payment processed for order {order_id}")
+
+    return {"message": "Payment processed successfully!", "order": order}

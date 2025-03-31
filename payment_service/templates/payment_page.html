@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Payment Service</title>
+</head>
+<body>
+    <h1>Payment Page</h1>
+    <p>Order ID: <span id="order_id"></span></p>
+    <button id="payNow">Pay Now</button>
+
+    <h2>Payment Status</h2>
+    <ul id="statusUpdates"></ul>
+
+    <script>
+        // Get order_id from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const orderId = urlParams.get("order_id");
+        document.getElementById("order_id").textContent = orderId;
+
+        document.getElementById("payNow").onclick = async function() {
+            let paymentData = { order_id: orderId, status: "payment_processed" };
+
+            let response = await fetch("http://127.0.0.1:8083/process_payment/", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(paymentData)
+            });
+
+            if (response.ok) {
+                let result = await response.json();
+                let item = document.createElement("li");
+                item.textContent = `Payment Status: ${result.status}`;
+                document.getElementById("statusUpdates").appendChild(item);
+            }
+        };
+    </script>
+</body>
+</html>
