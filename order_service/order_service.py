@@ -11,7 +11,7 @@ app = FastAPI()
 
 # Kafka Configuration
 KAFKA_BROKER_URL = "localhost:9092"
-ORDER_TOPIC = "order-topic"
+ORDER_TOPIC = "order_topic"
 
 # WebSockets for real-time updates
 clients = []
