@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Order Service</title>
+    
+</head>
+<body>
+    <h1>Place an Order</h1>
+    <form id="orderForm">
+        <input type="text" id="order_id" placeholder="Order ID" required>
+        <input type="text" id="user_id" placeholder="User ID" required>
+        <input type="text" id="product_id" placeholder="Product ID" required>
+        <input type="number" id="quantity" placeholder="Quantity" required>
+        <button type="submit">Place Order</button>
+    </form>
+
+    <h2>Order Updates</h2>
+    <ul id="updates"></ul>
+
+    <script>
+        let ws = new WebSocket("ws://127.0.0.1:8000/ws");
+
+        ws.onmessage = function(event) {
+            let data = JSON.parse(event.data);
+            let item = document.createElement("li");
+            item.textContent = `Order ${data.order_id}: ${data.status}`;
+            document.getElementById("updates").appendChild(item);
+        };
+
+        document.getElementById("orderForm").onsubmit = async function(event) {
+            event.preventDefault();
+            let order = {
+                order_id: document.getElementById("order_id").value,
+                user_id: document.getElementById("user_id").value,
+                product_id: document.getElementById("product_id").value,
+                quantity: document.getElementById("quantity").value
+            };
+
+            await fetch("/place_order/", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(order)
+            });
+        };
+    </script>
+</body>
+</html>
