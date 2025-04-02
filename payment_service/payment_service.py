@@ -16,6 +16,7 @@ from pydantic import BaseModel
 
 class PaymentRequest(BaseModel):
     order_id: str
+    status: str
 
 # Setup Jinja2 Templates
 templates = Jinja2Templates(directory="templates")
@@ -74,14 +75,15 @@ async def payment_page(request: Request, order_id: str):
 async def process_payment(payment: PaymentRequest):
     """Process the payment and publish event to Kafka"""
     order_id = payment.order_id
-    order = orders.get(order_id)
+    #order = orders.get(order_id)
    # order = orders.get(order_id)
-    if not order:
+    status = payment.status
+    if not order_id:
         return {"error": "Order not found"}
 
     # Simulate payment processing
-    order["status"] = "payment_processed"
-    await producer.send(PAYMENT_TOPIC, order)
+    #order["status"] = "payment_processed"
+    await producer.send(PAYMENT_TOPIC, order_id)
     print(f"Payment processed for order {order_id}")
 
-    return {"message": "Payment processed successfully!", "order": order}
+    return {"message": "Payment processed successfully!", "order": order_id,"status":status}
