@@ -4,6 +4,9 @@ from fastapi.staticfiles import StaticFiles
 import json
 import asyncio
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
+from pymongo import MongoClient
+import db
+import logging
 
 app = FastAPI()
 
@@ -11,6 +14,9 @@ app = FastAPI()
 KAFKA_BROKER_URL = "localhost:9092"
 ORDER_TOPIC = "order_topic"
 PAYMENT_TOPIC = "payment_topic"
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 from pydantic import BaseModel
 
@@ -80,6 +86,10 @@ async def process_payment(payment: PaymentRequest):
     status = payment.status
     if not order_id:
         return {"error": "Order not found"}
+    
+    #Updating payment status
+    db.update_order_status(order_id,status)
+    logger.info("Payment status updated in DB")
 
     # Simulate payment processing
     #order["status"] = "payment_processed"
